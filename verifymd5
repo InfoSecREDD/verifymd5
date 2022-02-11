@@ -1,0 +1,85 @@
+#!/bin/bash
+PM3PATH=$(dirname "$0")
+EVALENV=""
+FULLIMAGE="fullimage.elf"
+BOOTIMAGE="bootrom.elf"
+if [ "$CLIENT" == "" ]; then
+        CLIENT_RAW_FILENAME="$PM3PATH/client/proxmark3"
+        CLIENT=$(echo "$CLIENT_RAW_FILENAME" | awk '{ print substr ($0, 3 ) }')
+fi
+RED="\e[31m"
+GREEN="\e[32m"
+ENDCOLOR="\e[0m"
+function verify_md5 () {
+        FILE=${1%.*}
+        if md5sum --status -c $FILE.md5; then
+                echo "[✓] $FILE - Passed!"
+        else
+                echo "[×] $FILE - FAILED!"
+                echo "    $FILE is different than previously compiled."
+                read -n 1 -s -r -p "Press any key to continue..";echo
+        fi
+}
+function gen_md5 () {
+        echo "[-] Generating md5sum file for $1"
+        md5sum "$1" > "$2"
+}
+function md5int {
+        echo "--> Verifying firmware and client file integrity.."
+}
+function md5out {
+        echo "[✓] Finished firmware and client check."
+}
+function chkall_md5 {
+        md5int;
+        if [[ $BOOTIMAGE = ./* ]]; then
+                BOOTIMAGE2=$(echo "$BOOTIMAGE" | awk '{ print substr ($0, 3 ) }')
+        else
+                BOOTIMAGE2=$BOOTIMAGE
+        fi
+        if [[ $FULLIMAGE = ./* ]]; then
+                FULLIMAGE2=$(echo "$FULLIMAGE" | awk '{ print substr ($0, 3 ) }')
+        else
+                FULLIMAGE2=$FULLIMAGE
+        fi
+        if [[ $CLIENT = ./* ]]; then
+                CLIENT2=$(echo "$CLIENT" | awk '{ print substr ($0, 3 ) }')
+        else
+                CLIENT2=$CLIENT
+        fi
+        BASE_BOOTIMAGE=$(basename $BOOTIMAGE2)
+        BASE_FULLIMAGE=$(basename $FULLIMAGE2)
+        BASE_CLIENT=$(basename $CLIENT2)
+        if [ ! -f "$BOOTIMAGE2" ]; then
+                echo "No local $BOOTIMAGE2 to generate md5sum."
+                read -n 1 -s -r -p "Press any key to continue..";echo
+        elif [ ! -f "$PM3PATH/$BASE_BOOTIMAGE.md5" ]; then
+                echo "[!] No MD5 file found for current build."
+                gen_md5 $BOOTIMAGE2 $PM3PATH/$BASE_BOOTIMAGE.md5
+                echo "[✓] Generated new MD5 file."
+        else
+                verify_md5 $BASE_BOOTIMAGE.md5
+        fi
+        if [ ! -f "$FULLIMAGE2" ]; then
+                echo "No local $FULLIMAGE2 to generate md5sum."
+                read -n 1 -s -r -p "Press any key to continue..";echo
+        elif [ ! -f "$PM3PATH/$FULLIMAGE2.md5" ]; then
+                echo "[!] No MD5 file found for current build."
+                gen_md5 $FULLIMAGE2 $PM3PATH/$BASE_FULLIMAGE.md5
+                echo "[✓] Generated new MD5 file."
+        else
+                verify_md5 $BASE_FULLIMAGE.md5
+        fi
+        if [ ! -f "$CLIENT2" ]; then
+                echo "No local $CLIENT2 to generate md5sum."
+                read -n 1 -s -r -p "Press any key to continue..";echo
+        elif [ ! -f "$PM3PATH/$BASE_CLIENT.md5" ]; then
+                echo "[!] No MD5 file found for current build."
+                gen_md5 $CLIENT $PM3PATH/$BASE_CLIENT.md5
+                echo "[✓] Generated new MD5 file."
+        else
+                verify_md5 $BASE_CLIENT.md5
+        fi
+        md5out;
+}
+chkall_md5;
